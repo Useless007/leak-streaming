@@ -1,0 +1,397 @@
+openapi: 3.1.0
+info:
+  title: Movie Catalog API
+  version: 1.0.0
+  description: REST contract for managing streaming movies, captions, and playback tokens.
+servers:
+  - url: https://api.leak-streaming.local
+    description: Placeholder environment
+tags:
+  - name: Movies
+    description: Movie catalog operations
+  - name: Admin
+    description: Administrative mutations
+  - name: Playback
+    description: Viewer playback token issuance
+paths:
+  /api/movies:
+    get:
+      tags: [Movies]
+      summary: List visible movies
+      operationId: listMovies
+      parameters:
+        - in: query
+          name: visibility
+          schema:
+            type: string
+            enum: [VISIBLE, HIDDEN, ALL]
+          description: Filter by visibility (admin only can request HIDDEN/ALL).
+        - in: query
+          name: schedule
+          schema:
+            type: string
+            enum: [CURRENT, UPCOMING, EXPIRED]
+      responses:
+        '200':
+          description: Movies retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  movies:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MovieSummary'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+    post:
+      tags: [Admin]
+      summary: Create a new movie
+      operationId: createMovie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MovieCreateRequest'
+      responses:
+        '201':
+          description: Movie created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovieDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Movie title already exists
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+  /api/movies/{movieId}:
+    get:
+      tags: [Movies]
+      summary: Retrieve movie details
+      operationId: getMovie
+      parameters:
+        - $ref: '#/components/parameters/MovieId'
+      responses:
+        '200':
+          description: Movie details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovieDetail'
+        '404':
+          description: Movie not found or unavailable
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+    patch:
+      tags: [Admin]
+      summary: Update movie metadata
+      operationId: updateMovie
+      parameters:
+        - $ref: '#/components/parameters/MovieId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MovieUpdateRequest'
+      responses:
+        '200':
+          description: Movie updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovieDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Movie not found
+        '409':
+          description: Movie title already exists
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+  /api/movies/{movieId}/visibility:
+    post:
+      tags: [Admin]
+      summary: Toggle movie visibility
+      operationId: setMovieVisibility
+      parameters:
+        - $ref: '#/components/parameters/MovieId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visibility]
+              properties:
+                visibility:
+                  type: string
+                  enum: [VISIBLE, HIDDEN]
+      responses:
+        '200':
+          description: Visibility updated
+        '404':
+          description: Movie not found
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+  /api/movies/{movieId}/stream-token:
+    post:
+      tags: [Playback]
+      summary: Issue signed playback URL
+      operationId: issueStreamToken
+      parameters:
+        - $ref: '#/components/parameters/MovieId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [viewerContext]
+              properties:
+                viewerContext:
+                  type: string
+                  description: Hash identifying the viewer/session
+      responses:
+        '200':
+          description: Token issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  signedUrl:
+                    type: string
+                  expiresAt:
+                    type: string
+                    format: date-time
+        '403':
+          description: Viewer not authorized or movie unavailable
+        '404':
+          description: Movie not found
+        '409':
+          description: Caption assets missing; playback blocked
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+components:
+  parameters:
+    MovieId:
+      name: movieId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    ValidationError:
+      description: Request failed validation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+              issues:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    field:
+                      type: string
+                    error:
+                      type: string
+    RateLimitExceeded:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until the requester may retry
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+              scope:
+                type: string
+  schemas:
+    MovieSummary:
+      type: object
+      properties:
+        movieId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        slug:
+          type: string
+        posterUrl:
+          type: string
+        availability:
+          type: object
+          properties:
+            start:
+              type: string
+              format: date-time
+            end:
+              type: string
+              format: date-time
+        visibility:
+          type: string
+          enum: [VISIBLE, HIDDEN]
+    MovieDetail:
+      allOf:
+        - $ref: '#/components/schemas/MovieSummary'
+        - type: object
+          properties:
+            synopsis:
+              type: string
+            genres:
+              type: array
+              items:
+                type: string
+            durationMinutes:
+              type: integer
+            streamSources:
+              type: array
+              items:
+                $ref: '#/components/schemas/StreamSource'
+            captionTracks:
+              type: array
+              items:
+                $ref: '#/components/schemas/CaptionTrack'
+    StreamSource:
+      type: object
+      properties:
+        streamSourceId:
+          type: string
+          format: uuid
+        streamUrl:
+          type: string
+        qualityTag:
+          type: string
+        drmRequired:
+          type: boolean
+        primary:
+          type: boolean
+        validationStatus:
+          type: string
+          enum: [VALID, INVALID, UNKNOWN]
+        lastValidatedAt:
+          type: string
+          format: date-time
+    CaptionTrack:
+      type: object
+      properties:
+        captionTrackId:
+          type: string
+          format: uuid
+        languageCode:
+          type: string
+        format:
+          type: string
+          enum: [WEBVTT, TTML]
+        captionUrl:
+          type: string
+        isDefault:
+          type: boolean
+        validationStatus:
+          type: string
+          enum: [VALID, INVALID, UNKNOWN]
+        lastValidatedAt:
+          type: string
+          format: date-time
+    MovieCreateRequest:
+      type: object
+      required:
+        - title
+        - synopsis
+        - availability
+        - durationMinutes
+        - posterUrl
+        - streamSources
+        - captionTracks
+      properties:
+        title:
+          type: string
+        synopsis:
+          type: string
+        genres:
+          type: array
+          items:
+            type: string
+        durationMinutes:
+          type: integer
+          minimum: 1
+        availability:
+          type: object
+          properties:
+            start:
+              type: string
+              format: date-time
+            end:
+              type: string
+              format: date-time
+        posterUrl:
+          type: string
+        streamSources:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [streamUrl]
+            properties:
+              streamUrl:
+                type: string
+              qualityTag:
+                type: string
+              drmRequired:
+                type: boolean
+              primary:
+                type: boolean
+        captionTracks:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [languageCode, captionUrl, format]
+            properties:
+              languageCode:
+                type: string
+              captionUrl:
+                type: string
+              format:
+                type: string
+                enum: [WEBVTT, TTML]
+              isDefault:
+                type: boolean
+    MovieUpdateRequest:
+      type: object
+      properties:
+        synopsis:
+          type: string
+        genres:
+          type: array
+          items:
+            type: string
+        availability:
+          $ref: '#/components/schemas/MovieCreateRequest/properties/availability'
+        durationMinutes:
+          type: integer
+        posterUrl:
+          type: string
+        streamSources:
+          type: array
+          items:
+            $ref: '#/components/schemas/StreamSource'
+        captionTracks:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaptionTrack'

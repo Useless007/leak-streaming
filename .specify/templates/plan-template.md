@@ -11,27 +11,30 @@
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
-
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Language/Version**: TypeScript (Next.js 15 App Router), Go 1.23+  
+**Primary Dependencies**: Next.js 15, React Server Components, Tailwind CSS or CSS Modules, Go chi/fiber or gRPC, sqlc/ent, OpenTelemetry  
+**Storage**: PostgreSQL (primary), Redis (caching/queues) unless feature specifies otherwise  
+**Testing**: Playwright or Cypress (E2E), Jest/Testing Library (frontend unit), `go test` + testify (backend unit/integration)  
+**Target Platform**: Web (SSR + streaming) deployed on Linux containers via Kubernetes  
+**Project Type**: Web application with contracts shared between frontend and backend  
+**Performance Goals**: ≤200 ms p95 for critical route handlers, sustain 1k req/s per service, 95% CLS < 0.1  
+**Constraints**: Must honor App Router streaming, graceful degradation offline, zero-trust API access  
+**Scale/Scope**: Multi-tenant streaming platform with progressive feature rollout
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- Principle I (Next.js App Router Discipline): Document how the feature stays within the `app/`
+  router, enforces TypeScript types, and scopes client components.
+- Principle II (Go Backend Reliability): Describe service layering, `context.Context` handling,
+  error strategy, and concurrency controls for new or changed Go endpoints.
+- Principle III (Shared Contracts & Type Safety): Identify contract artifacts (OpenAPI/Buf/etc.),
+  required version bumps, and generated types for both stacks.
+- Principle IV (Observability & Security Assurance): Plan logging, tracing, metrics, and security
+  gates (auth scopes, secret usage, scanners).
+- Principle V (Continuous Delivery Excellence): Explain CI coverage, preview environment needs, and
+  rollback/feature flag strategy.
 
 ## Project Structure
 
@@ -48,47 +51,40 @@ specs/[###-feature]/
 ```
 
 ### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
-
 ```
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
-
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
 backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
+├── cmd/                 # Service entrypoints
+├── internal/
+│   ├── api/             # Handlers, transport adapters
+│   ├── domain/          # Business logic
+│   ├── persistence/     # Repositories
+│   └── platform/        # Observability, config, clients
+├── pkg/                 # Shared libraries (exported)
 └── tests/
+    ├── integration/
+    └── contract/
 
 frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
+├── app/                 # Next.js App Router entrypoints
+├── components/          # Server/client components (clearly labeled)
+├── lib/                 # Shared utilities (server-first)
+├── styles/
+└── tests/               # Jest + Playwright specs
 
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
+contracts/
+├── openapi/             # REST contracts
+├── proto/               # gRPC contracts
+└── generators/          # Scripts to emit TS + Go types
 
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+infrastructure/
+├── k8s/
+├── terraform/
+└── pipelines/
+
+scripts/
+├── dev.sh
+└── ci/
+
 ```
 
 **Structure Decision**: [Document the selected structure and reference the real
@@ -102,4 +98,3 @@ directories captured above]
 |-----------|------------|-------------------------------------|
 | [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
 | [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
-
