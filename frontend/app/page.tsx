@@ -20,7 +20,7 @@ export default function HomePage() {
           </p>
           <div className="flex flex-wrap gap-4">
             <Link
-              href="/movies/sample-movie"
+              href="/movies"
               className={cn(
                 'inline-flex items-center justify-center rounded-full bg-primary px-6 py-2 text-sm font-medium text-primary-foreground shadow transition hover:bg-primary/90'
               )}

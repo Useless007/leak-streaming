@@ -26,6 +26,7 @@ func (h HTTPConfig) Address() string {
 type Config struct {
 	Env       string
 	HTTP      HTTPConfig
+	Database  DatabaseConfig
 	Redis     cache.RedisConfig
 	Telemetry telemetry.Config
 	Stream    StreamConfig
@@ -33,6 +34,19 @@ type Config struct {
 
 type StreamConfig struct {
 	TokenTTL time.Duration
+}
+
+type DatabaseConfig struct {
+	Host            string
+	Port            int
+	User            string
+	Password        string
+	Name            string
+	SSLMode         string
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime time.Duration
+	MigrationsDir   string
 }
 
 func Load() (Config, error) {
@@ -48,6 +62,18 @@ func Load() (Config, error) {
 	return Config{
 		Env:  getEnv("APP_ENV", "development"),
 		HTTP: http,
+		Database: DatabaseConfig{
+			Host:            getEnv("DB_HOST", "127.0.0.1"),
+			Port:            getEnvAsInt("DB_PORT", 5432),
+			User:            getEnv("DB_USER", "leakstream"),
+			Password:        getEnv("DB_PASSWORD", "leakstream"),
+			Name:            getEnv("DB_NAME", "leakstream"),
+			SSLMode:         getEnv("DB_SSL_MODE", "disable"),
+			MaxOpenConns:    getEnvAsInt("DB_MAX_OPEN_CONNS", 25),
+			MaxIdleConns:    getEnvAsInt("DB_MAX_IDLE_CONNS", 5),
+			ConnMaxLifetime: getEnvAsDurationSeconds("DB_CONN_MAX_LIFETIME_SEC", 300),
+			MigrationsDir:   getEnv("DB_MIGRATIONS_DIR", "./internal/persistence/migrations"),
+		},
 		Redis: cache.RedisConfig{
 			Host:            getEnv("REDIS_HOST", "127.0.0.1"),
 			Port:            getEnvAsInt("REDIS_PORT", 6379),

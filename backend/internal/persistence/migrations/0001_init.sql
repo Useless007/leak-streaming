@@ -1,64 +1,62 @@
 -- +goose Up
--- Initial schema for movies, streams, captions, and playback tokens
+-- Initial schema for movies, streams, captions, and playback tokens (PostgreSQL)
 
 CREATE TABLE movies (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    slug VARCHAR(128) NOT NULL,
-    title VARCHAR(255) NOT NULL,
+    id BIGSERIAL PRIMARY KEY,
+    slug VARCHAR(128) NOT NULL UNIQUE,
+    title VARCHAR(255) NOT NULL UNIQUE,
     synopsis TEXT NULL,
     poster_url VARCHAR(512) NULL,
-    availability_start TIMESTAMP NULL,
-    availability_end TIMESTAMP NULL,
-    is_visible TINYINT(1) NOT NULL DEFAULT 1,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    UNIQUE KEY uq_movies_slug (slug),
-    UNIQUE KEY uq_movies_title (title),
-    KEY idx_movies_availability (availability_start, availability_end),
-    KEY idx_movies_visibility (is_visible)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    availability_start TIMESTAMPTZ NULL,
+    availability_end TIMESTAMPTZ NULL,
+    is_visible BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_movies_availability ON movies (availability_start, availability_end);
+CREATE INDEX idx_movies_visibility ON movies (is_visible);
 
 CREATE TABLE movie_streams (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    movie_id BIGINT UNSIGNED NOT NULL,
-    stream_url VARCHAR(512) NOT NULL,
+    id BIGSERIAL PRIMARY KEY,
+    movie_id BIGINT NOT NULL REFERENCES movies(id) ON DELETE CASCADE,
+    stream_url VARCHAR(1024) NOT NULL,
     drm_key_id VARCHAR(128) NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    UNIQUE KEY uq_movie_streams_movie (movie_id),
-    CONSTRAINT fk_movie_streams_movie FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    allowed_hosts JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (movie_id)
+);
 
 CREATE TABLE movie_captions (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    movie_id BIGINT UNSIGNED NOT NULL,
+    id BIGSERIAL PRIMARY KEY,
+    movie_id BIGINT NOT NULL REFERENCES movies(id) ON DELETE CASCADE,
     language_code VARCHAR(16) NOT NULL,
     label VARCHAR(64) NOT NULL,
-    caption_url VARCHAR(512) NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    UNIQUE KEY uq_movie_captions (movie_id, language_code),
-    CONSTRAINT fk_movie_captions_movie FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    caption_url VARCHAR(1024) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (movie_id, language_code),
+    CHECK (caption_url LIKE 'http%' OR caption_url LIKE 'https%' OR caption_url LIKE '/%')
+);
 
 CREATE TABLE playback_tokens (
-    token CHAR(64) NOT NULL,
-    movie_id BIGINT UNSIGNED NOT NULL,
+    token VARCHAR(64) PRIMARY KEY,
+    movie_id BIGINT NOT NULL REFERENCES movies(id) ON DELETE CASCADE,
     viewer_id VARCHAR(128) NULL,
-    expires_at TIMESTAMP NOT NULL,
-    issued_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (token),
-    KEY idx_playback_tokens_movie (movie_id),
-    KEY idx_playback_tokens_expires (expires_at),
-    CONSTRAINT fk_playback_tokens_movie FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    expires_at TIMESTAMPTZ NOT NULL,
+    issued_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
--- Ensure caption URL integrity via basic check
-ALTER TABLE movie_captions
-    ADD CONSTRAINT chk_movie_captions_url CHECK (caption_url LIKE 'http%' OR caption_url LIKE 'https%');
+CREATE INDEX idx_playback_tokens_movie ON playback_tokens (movie_id);
+CREATE INDEX idx_playback_tokens_expires ON playback_tokens (expires_at);
+
+ALTER TABLE movies
+    ADD CONSTRAINT chk_movies_availability CHECK (
+        availability_start IS NULL
+        OR availability_end IS NULL
+        OR availability_start <= availability_end
+    );
 
 ALTER TABLE movie_streams
     ADD CONSTRAINT chk_movie_streams_url CHECK (stream_url LIKE 'http%' OR stream_url LIKE 'https%');

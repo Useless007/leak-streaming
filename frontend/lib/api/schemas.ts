@@ -24,7 +24,7 @@ export const captionSchema = z.object({
   captionUrl: urlOrPathSchema
 });
 
-export const movieSchema = z.object({
+export const movieSummarySchema = z.object({
   id: z.string(),
   slug: z.string().min(1),
   title: z.string().min(1, 'ต้องกรอกชื่อเรื่อง'),
@@ -32,7 +32,10 @@ export const movieSchema = z.object({
   posterUrl: z.string().url().optional(),
   availabilityStart: z.string().datetime().optional().nullable(),
   availabilityEnd: z.string().datetime().optional().nullable(),
-  isVisible: z.boolean(),
+  isVisible: z.boolean()
+});
+
+export const movieSchema = movieSummarySchema.extend({
   captions: captionSchema.array().default([])
 });
 
@@ -51,6 +54,7 @@ export const playbackTokenSchema = z.object({
   url: z.string().url().optional()
 });
 
+export type MovieSummary = z.infer<typeof movieSummarySchema>;
 export type Movie = z.infer<typeof movieSchema>;
 export type Caption = z.infer<typeof captionSchema>;
 export type Stream = z.infer<typeof streamSchema>;

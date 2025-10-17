@@ -1,17 +1,17 @@
 # Quickstart – Movie Streaming Portal
 
 ## Prerequisites
-- Node.js 20+, pnpm 9+
+- Bun 1.1+ (หรือ Node.js 20+ หากจำเป็นต้องใช้สคริปต์ pnpm เดิม)
 - Go 1.23+
-- Docker / Compose (MySQL, Redis, CDN stub)
+- Docker / Compose (PostgreSQL, Redis, CDN stub)
 - OpenSSL (signed URL key generation)
 
 ## 1. Bootstrap infrastructure
 ```bash
-docker compose up -d redis
+docker compose up -d postgres redis
 ```
+- PostgreSQL 16: ฐานข้อมูลหลัก (user/password/db = `leakstream`) เปิดพอร์ต 5432
 - Redis: reserved for rate-limit counters and signed token cache (service ใช้ภาพ `redis:7.4-alpine` เปิดพอร์ต 6379)
-- MySQL / nginx-cdn: จะเพิ่มภายหลังเมื่อ ready (ปัจจุบันเน้น Redis สำหรับ rate limiting)
 
 ## 2. Configure environment variables
 
@@ -20,22 +20,20 @@ docker compose up -d redis
 
 ## 3. Install dependencies & generate types
 ```bash
-pnpm install
-pnpm contracts:generate
+bun install
+# TODO: contracts:generate / go generate จะผูกกับ contract tooling ใน phase ถัดไป
 go mod tidy
-go generate ./...
 ```
-- Contracts generator emits TypeScript clients in `frontend/lib/contracts` and Go clients in `backend/internal/contracts`.
 
 ## 4. Seed development data
 ```bash
-pnpm db:seed            # adds sample movies, captions, streams
-go run ./backend/cmd/admin bootstrap --force
+go run ./backend/cmd/migrate up
 ```
+- Migration `0002_seed_sample.sql` จะเติมข้อมูลหนังตัวอย่างลง PostgreSQL ให้พร้อมทดสอบทันที
 
 ## 5. Run services
 ```bash
-pnpm dev                # Next.js 15 App Router dev server (uses Suspense/loading states)
+bun dev                 # Next.js 15 App Router dev server
 go run ./backend/cmd/api
 ```
 - Ensure `.env.local` contains CDN signing keys and Redis DSN.
@@ -48,14 +46,14 @@ go run ./backend/cmd/api
 
 ## 7. Test suites
 ```bash
-pnpm test               # Jest unit
-pnpm test:e2e           # Playwright (viewer + admin journeys)
-go test ./...           # Backend unit/integration
-k6 run tests/load.js    # Optional smoke for 1k concurrent viewers
+bun run test                                        # Vitest unit (frontend)
+PLAYWRIGHT_BASE_URL=http://localhost:3000 npx playwright test  # Viewer E2E
+go test ./...                                      # Backend unit/integration
+# k6 run tests/load/viewer-stream.js               # Optional load (เตรียมไว้ทีหลัง)
 ```
 - Ensure CI pipeline runs lint, tests, build, docker image publish, and uploads Playwright artifacts for regression debugging.
 
 ## 8. Deployment readiness
 - Review monitoring dashboards: playback failure <5%, rate-limit alerts <50 events/5 min.
 - Confirm feature flag `ADMIN_CATALOG_ENABLED` defaults off until launch sign-off.
-- Prepare rollback by snapshotting MySQL schema and caching config.
+- Prepare rollback by snapshotting PostgreSQL schema and caching config.

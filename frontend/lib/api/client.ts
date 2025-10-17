@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import {
   movieSchema,
+  movieSummarySchema,
   playbackTokenSchema,
   streamSchema,
   captionSchema,
   type Movie,
+  type MovieSummary,
   type Caption,
   type Stream,
   type PlaybackToken
@@ -85,6 +87,12 @@ async function request<ResponseType>(
 
 export function createApiClient(options: FetcherOptions = {}) {
   return {
+    async listMovies(): Promise<MovieSummary[]> {
+      return request('/movies', movieSummarySchema.array(), {
+        ...options,
+        cache: 'no-store'
+      });
+    },
     async getMovie(movieId: string): Promise<Movie> {
       return request(`/movies/${movieId}`, movieSchema, {
         ...options,

@@ -46,6 +46,10 @@ func (s *Service) GetMovie(ctx context.Context, slug string) (movies.Movie, erro
 	return s.repo.GetMovieWithStreams(ctx, slug)
 }
 
+func (s *Service) ListMovies(ctx context.Context) ([]movies.Movie, error) {
+	return s.repo.ListMovies(ctx)
+}
+
 func (s *Service) CreatePlaybackToken(ctx context.Context, movie movies.Movie, viewerID string) (string, error) {
 	if !movie.IsAvailable(s.now()) {
 		return "", ErrMovieUnavailable

@@ -13,6 +13,7 @@ import (
 	"github.com/leak-streaming/leak-streaming/backend/internal/persistence/repository"
 	"github.com/leak-streaming/leak-streaming/backend/internal/platform/cache"
 	"github.com/leak-streaming/leak-streaming/backend/internal/platform/config"
+	"github.com/leak-streaming/leak-streaming/backend/internal/platform/database"
 	"github.com/leak-streaming/leak-streaming/backend/internal/platform/logger"
 	"github.com/leak-streaming/leak-streaming/backend/internal/platform/telemetry"
 	movieservice "github.com/leak-streaming/leak-streaming/backend/internal/service/movies"
@@ -54,7 +55,19 @@ func main() {
 		}()
 	}
 
-	repo := repository.NewMovieRepository(nil)
+	db, err := database.Connect(ctx, cfg.Database)
+	if err != nil {
+		log.Warn("failed to connect database", "error", err)
+	}
+	if db != nil {
+		defer func() {
+			if err := db.Close(); err != nil {
+				log.Warn("failed to close database connection", "error", err)
+			}
+		}()
+	}
+
+	repo := repository.NewMovieRepository(db)
 	var tokenSigner movieservice.TokenSigner
 	if redisClient != nil {
 		tokenSigner = movieservice.NewRedisTokenSigner(redisClient)
