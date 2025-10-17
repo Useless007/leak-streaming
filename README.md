@@ -40,7 +40,7 @@ specs/          # บันทึกแผน/สเปก ใช้ประก
 
 ```bash
 # Clone
-git clone <your-fork-or-repo-url> leak-streaming
+git clone https://github.com/Useless007/leak-streaming.git
 cd leak-streaming
 
 # ติดตั้ง dependencies ฝั่ง frontend (ใช้ Bun ตามค่าเริ่มต้นของ workspace)
