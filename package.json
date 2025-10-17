@@ -1,0 +1,19 @@
+{
+  "name": "leak-streaming",
+  "private": true,
+  "packageManager": "bun@1.1.24",
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "lint": "cd frontend && bun run lint",
+    "test": "cd frontend && bun run test"
+  },
+  "engines": {
+    "node": ">=20.10.0",
+    "bun": ">=1.1.0"
+  },
+  "dependencies": {
+    "hls.js": "^1.6.13"
+  }
+}

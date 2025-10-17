@@ -1,0 +1,25 @@
+# Node/Bun
+node_modules
+bun.lockb
+
+# Next.js
+.next
+frontend/.next
+frontend/out
+
+# Logs
+*.log
+*.log.*
+
+# Editor
+.DS_Store
+.idea
+.vscode/
+
+# Go
+backend/bin
+backend/tmp
+backend/.cache
+coverage.out
+
+.bun

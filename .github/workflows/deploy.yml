@@ -1,0 +1,47 @@
+name: Canary Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deployment environment"
+        required: true
+        default: "staging"
+      release_tag:
+        description: "Container image tag to deploy"
+        required: true
+      canary_percent:
+        description: "Initial canary traffic percentage"
+        required: true
+        default: "10"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      ENVIRONMENT: ${{ github.event.inputs.environment }}
+      RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+      CANARY_PERCENTAGE: ${{ github.event.inputs.canary_percent }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Authenticate to Kubernetes
+        run: |
+          echo "TODO: configure kubectl authentication for $ENVIRONMENT"
+      - name: Deploy Canary
+        run: |
+          ./scripts/deploy/canary_rollout.sh \
+            --env "$ENVIRONMENT" \
+            --tag "$RELEASE_TAG" \
+            --traffic "$CANARY_PERCENTAGE"
+      - name: Monitor Canary Health
+        run: |
+          ./scripts/deploy/check_canary_health.sh \
+            --env "$ENVIRONMENT" \
+            --timeout 900
+      - name: Promote Canary to 100%
+        if: success()
+        run: |
+          ./scripts/deploy/canary_rollout.sh \
+            --env "$ENVIRONMENT" \
+            --tag "$RELEASE_TAG" \
+            --traffic 100

@@ -1,0 +1,151 @@
+{
+  "__inputs": [],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "10.4.0"
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "2.51.0"
+    }
+  ],
+  "title": "Leak Streaming Observability",
+  "tags": ["leak-streaming", "playback"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "title": "Playback Success Rate",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 0.98}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(playback_success_total{service=\"api\"}[5m])) / sum(rate(playback_attempt_total{service=\"api\"}[5m]))",
+          "legendFormat": "Success %",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+    },
+    {
+      "title": "Playback Token Issuance",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(playback_tokens_issued_total{service=\"api\"}[5m]))",
+          "legendFormat": "Tokens/min",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+    },
+    {
+      "title": "Rate Limit Blocks",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(rate_limit_block_total{service=\"api\"}[5m]))",
+          "legendFormat": "Blocks/min",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 8}
+    },
+    {
+      "title": "Redis Latency (p95)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(redis_command_duration_seconds_bucket{service=\"api\"}[5m])) by (le)) * 1000",
+          "legendFormat": "Redis p95",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 8}
+    },
+    {
+      "title": "Frontend Core Web Vitals",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "expr": "avg(rate(frontend_lcp_seconds_sum[5m]) / rate(frontend_lcp_seconds_count[5m]))",
+          "legendFormat": "LCP (s)",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 8}
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "Service",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(playback_success_total, service)",
+        "multi": true,
+        "includeAll": true
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "name": "Deployments",
+        "type": "tags",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "enable": true,
+        "expr": "kube_deployment_created{namespace=\"leak-streaming\"}"
+      }
+    ]
+  }
+}
