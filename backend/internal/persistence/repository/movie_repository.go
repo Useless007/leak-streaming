@@ -24,6 +24,10 @@ func (r *MovieRepository) GetMovieWithStreams(ctx context.Context, slug string) 
 	return movie, nil
 }
 
+func (r *MovieRepository) UpsertSampleMovie(movie movies.Movie) {
+	sampleMovies[movie.Slug] = movie
+}
+
 var sampleMovies = map[string]movies.Movie{
 	"sample-movie": {
 		ID:                "1",

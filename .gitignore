@@ -1,11 +1,16 @@
 # Node/Bun
 node_modules
 bun.lockb
+.bun-install/
+.bun-tmp/
 
 # Next.js
 .next
 frontend/.next
 frontend/out
+frontend/test-results/
+test-results/
+playwright-report/
 
 # Logs
 *.log

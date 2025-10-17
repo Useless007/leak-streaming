@@ -115,7 +115,13 @@ export function MoviePlayer({ movie }: PlayerProps) {
 
   return (
     <div className="space-y-4">
-      <div className="relative aspect-video overflow-hidden rounded-3xl border border-border bg-black shadow">
+      <div
+        className="relative aspect-video overflow-hidden rounded-3xl border border-border bg-black shadow"
+        data-testid="movie-player"
+        data-status={state.status}
+        data-caption={activeCaption ?? 'none'}
+        aria-live="polite"
+      >
         {state.status === 'loading' && (
           <div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
             <Loader2 className="size-5 animate-spin" aria-hidden />
