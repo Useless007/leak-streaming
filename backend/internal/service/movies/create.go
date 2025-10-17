@@ -62,9 +62,14 @@ func (s *Service) CreateMovie(ctx context.Context, input CreateMovieInput) (doma
 	}
 
 	synopsis := strings.TrimSpace(input.Synopsis)
+	if synopsis == "" {
+		issues["synopsis"] = "กรุณาระบุคำบรรยายภาพยนตร์"
+	}
 
 	posterURL := strings.TrimSpace(input.PosterURL)
-	if posterURL != "" && !isValidHTTPURL(posterURL) {
+	if posterURL == "" {
+		issues["posterUrl"] = "กรุณาระบุ URL โปสเตอร์"
+	} else if !isValidHTTPURL(posterURL) {
 		issues["posterUrl"] = "โปสเตอร์ต้องเป็น URL แบบ http(s)"
 	}
 
@@ -75,8 +80,8 @@ func (s *Service) CreateMovie(ctx context.Context, input CreateMovieInput) (doma
 		issues["streamUrl"] = "ต้องเป็น URL แบบ http(s) และลงท้ายด้วย .m3u8"
 	}
 
-	availabilityStart := parseOptionalTime(input.AvailabilityStart, "availabilityStart", issues)
-	availabilityEnd := parseOptionalTime(input.AvailabilityEnd, "availabilityEnd", issues)
+	availabilityStart := parseRequiredTime(input.AvailabilityStart, "availabilityStart", issues)
+	availabilityEnd := parseRequiredTime(input.AvailabilityEnd, "availabilityEnd", issues)
 	if availabilityStart != nil && availabilityEnd != nil && availabilityEnd.Before(*availabilityStart) {
 		issues["availabilityEnd"] = "วันที่สิ้นสุดต้องอยู่หลังหรือเท่ากับวันที่เริ่มฉาย"
 	}
@@ -86,6 +91,11 @@ func (s *Service) CreateMovie(ctx context.Context, input CreateMovieInput) (doma
 	normalizedCaptions, captionIssues := normalizeCaptions(input.Captions)
 	for field, message := range captionIssues {
 		issues[field] = message
+	}
+
+	// Validate allowed hosts
+	if len(input.AllowedHosts) == 0 && streamURL == "" {
+		issues["allowedHosts"] = "กรุณาระบุ allowed hosts อย่างน้อย 1 host"
 	}
 
 	if len(issues) > 0 {
@@ -146,6 +156,21 @@ func (s *Service) CreateMovie(ctx context.Context, input CreateMovieInput) (doma
 func parseOptionalTime(raw string, field string, issues map[string]string) *time.Time {
 	value := strings.TrimSpace(raw)
 	if value == "" {
+		return nil
+	}
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		issues[field] = "รูปแบบวันที่ต้องเป็น RFC3339"
+		return nil
+	}
+	t := parsed.UTC()
+	return &t
+}
+
+func parseRequiredTime(raw string, field string, issues map[string]string) *time.Time {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		issues[field] = "กรุณาระบุวันที่"
 		return nil
 	}
 	parsed, err := time.Parse(time.RFC3339, value)

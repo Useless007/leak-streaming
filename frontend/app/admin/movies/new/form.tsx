@@ -89,7 +89,7 @@ export function AdminNewMovieForm() {
 						name="title"
 						render={({ field }) => (
 							<FormItem>
-								<FormLabel>ชื่อเรื่อง</FormLabel>
+								<FormLabel>ชื่อเรื่อง *</FormLabel>
 								<FormControl>
 									<Input placeholder="เช่น สปริงรีลีส 2025" {...field} />
 								</FormControl>
@@ -102,7 +102,7 @@ export function AdminNewMovieForm() {
 						name="posterUrl"
 						render={({ field }) => (
 							<FormItem>
-								<FormLabel>โปสเตอร์</FormLabel>
+								<FormLabel>โปสเตอร์ *</FormLabel>
 								<FormControl>
 									<Input placeholder="https://cdn.example.com/posters/movie.jpg" {...field} />
 								</FormControl>
@@ -118,7 +118,7 @@ export function AdminNewMovieForm() {
 					name="synopsis"
 					render={({ field }) => (
 						<FormItem>
-							<FormLabel>คำบรรยายภาพยนตร์</FormLabel>
+							<FormLabel>คำบรรยายภาพยนตร์ *</FormLabel>
 							<FormControl>
 								<Textarea rows={4} placeholder="สรุปเรื่องย่อสั้น ๆ" {...field} />
 							</FormControl>
@@ -133,7 +133,7 @@ export function AdminNewMovieForm() {
 						name="availabilityStart"
 						render={({ field }) => (
 							<FormItem>
-								<FormLabel>เริ่มฉาย</FormLabel>
+								<FormLabel>เริ่มฉาย *</FormLabel>
 								<FormControl>
 									<Input type="datetime-local" {...field} />
 								</FormControl>
@@ -146,7 +146,7 @@ export function AdminNewMovieForm() {
 						name="availabilityEnd"
 						render={({ field }) => (
 							<FormItem>
-								<FormLabel>สิ้นสุด</FormLabel>
+								<FormLabel>สิ้นสุด *</FormLabel>
 								<FormControl>
 									<Input type="datetime-local" {...field} />
 								</FormControl>
@@ -161,7 +161,7 @@ export function AdminNewMovieForm() {
 					name="streamUrl"
 					render={({ field }) => (
 						<FormItem>
-							<FormLabel>ลิงก์สตรีม (.m3u8)</FormLabel>
+							<FormLabel>ลิงก์สตรีม (.m3u8) *</FormLabel>
 							<FormControl>
 								<Input placeholder="https://cdn.example.com/path/master.m3u8" {...field} />
 							</FormControl>
@@ -176,7 +176,7 @@ export function AdminNewMovieForm() {
 					name="allowedHosts"
 					render={({ field }) => (
 						<FormItem>
-							<FormLabel>Allowed hosts เพิ่มเติม</FormLabel>
+							<FormLabel>Allowed hosts *</FormLabel>
 							<FormControl>
 								<Textarea rows={3} placeholder={['ตัวอย่าง:', 'main.cdn.example.com', 'm42.edge.example.com'].join('\n')} {...field} />
 							</FormControl>

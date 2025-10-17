@@ -35,16 +35,14 @@ export const captionInputSchema = z.object({
 export const createMovieFormSchema = z
 	.object({
 		title: z.string({ required_error: 'กรุณาระบุชื่อเรื่อง' }).trim().min(1, 'กรุณาระบุชื่อเรื่อง'),
-		synopsis: z.string().trim().optional(),
+		synopsis: z.string({ required_error: 'กรุณาระบุคำบรรยายภาพยนตร์' }).trim().min(1, 'กรุณาระบุคำบรรยายภาพยนตร์'),
 		posterUrl: z
-			.string()
+			.string({ required_error: 'กรุณาระบุ URL โปสเตอร์' })
 			.trim()
-			.optional()
-			.refine((value) => !value || /^https?:\/\//.test(value), {
-				message: 'โปสเตอร์ต้องเป็น URL แบบ http(s)'
-			}),
-		availabilityStart: z.string().optional(),
-		availabilityEnd: z.string().optional(),
+			.min(1, 'กรุณาระบุ URL โปสเตอร์')
+			.url('โปสเตอร์ต้องเป็น URL แบบ http(s)'),
+		availabilityStart: z.string({ required_error: 'กรุณาระบุวันที่เริ่มฉาย' }).min(1, 'กรุณาระบุวันที่เริ่มฉาย'),
+		availabilityEnd: z.string({ required_error: 'กรุณาระบุวันที่สิ้นสุด' }).min(1, 'กรุณาระบุวันที่สิ้นสุด'),
 		isVisible: z.boolean().default(true),
 		streamUrl: z
 			.string({ required_error: 'กรุณาระบุลิงก์สตรีม' })
@@ -54,7 +52,7 @@ export const createMovieFormSchema = z
 				message: 'ต้องเป็นลิงก์ไฟล์ .m3u8'
 			}),
 		drmKeyId: z.string().trim().optional(),
-		allowedHosts: z.string().trim().optional(),
+		allowedHosts: z.string({ required_error: 'กรุณาระบุ allowed hosts' }).trim().min(1, 'กรุณาระบุ allowed hosts อย่างน้อย 1 host'),
 		captions: z.array(captionInputSchema).default([])
 	})
 	.superRefine((data, ctx) => {

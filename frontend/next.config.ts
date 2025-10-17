@@ -20,6 +20,10 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'test-streams.mux.dev'
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.shutterstock.com'
       }
     ]
   },

@@ -72,10 +72,18 @@ func TestCreateMovieDuplicateTitle(t *testing.T) {
 	repo := repository.NewMovieRepository(nil)
 	service := NewService(repo, NewInMemoryTokenSigner(), 5*time.Minute)
 
+	start := time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339)
+	end := time.Now().Add(26 * time.Hour).UTC().Format(time.RFC3339)
+
 	_, err := service.CreateMovie(context.Background(), CreateMovieInput{
-		Title:     "ตัวอย่างภาพยนตร์",
-		IsVisible: true,
-		StreamURL: "https://stream.example.com/demo/master.m3u8",
+		Title:             "ตัวอย่างภาพยนตร์",
+		Synopsis:          "Test synopsis",
+		PosterURL:         "https://example.com/poster.jpg",
+		AvailabilityStart: start,
+		AvailabilityEnd:   end,
+		IsVisible:         true,
+		StreamURL:         "https://stream.example.com/demo/master.m3u8",
+		AllowedHosts:      []string{"stream.example.com"},
 	})
 	if !errors.Is(err, ErrDuplicateMovieTitle) {
 		t.Fatalf("expected ErrDuplicateMovieTitle, got %v", err)
