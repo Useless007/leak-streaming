@@ -39,6 +39,19 @@ export const movieSchema = movieSummarySchema.extend({
   captions: captionSchema.array().default([])
 });
 
+export const createMoviePayloadSchema = z.object({
+  title: z.string().min(1),
+  synopsis: z.string().optional(),
+  posterUrl: z.string().url().optional(),
+  availabilityStart: z.string().datetime().optional(),
+  availabilityEnd: z.string().datetime().optional(),
+  isVisible: z.boolean().default(true),
+  streamUrl: z.string().url().endsWith('.m3u8', 'ต้องเป็นลิงก์ .m3u8'),
+  drmKeyId: z.string().optional(),
+  allowedHosts: z.array(z.string()).default([]),
+  captions: captionSchema.array().default([])
+});
+
 export const streamSchema = z.object({
   movieId: z.string(),
   streamUrl: z.string().url().endsWith('.m3u8', 'ต้องเป็นลิงก์ .m3u8'),
@@ -59,3 +72,4 @@ export type Movie = z.infer<typeof movieSchema>;
 export type Caption = z.infer<typeof captionSchema>;
 export type Stream = z.infer<typeof streamSchema>;
 export type PlaybackToken = z.infer<typeof playbackTokenSchema>;
+export type CreateMoviePayload = z.infer<typeof createMoviePayloadSchema>;

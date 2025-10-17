@@ -64,8 +64,10 @@ func NewServer(cfg config.Config, log *slog.Logger, redisClient *redis.Client, m
 		streamHandler := apimovies.NewStreamTokenHandler(movieService)
 		manifestHandler := apimovies.NewManifestHandler(movieService)
 		segmentHandler := apimovies.NewSegmentHandler(movieService)
+		createHandler := apimovies.NewCreateHandler(movieService)
 		r.Route("/movies", func(r chi.Router) {
 			r.Get("/", listHandler.ServeHTTP)
+			r.Post("/", createHandler.ServeHTTP)
 			r.Get("/{slug}", detailsHandler.ServeHTTP)
 			r.Post("/{slug}/playback-token", streamHandler.ServeHTTP)
 			r.Get("/{slug}/manifest.m3u8", manifestHandler.ServeHTTP)

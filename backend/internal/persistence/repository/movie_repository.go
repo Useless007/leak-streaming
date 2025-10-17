@@ -4,10 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/url"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/leak-streaming/leak-streaming/backend/internal/domain/movies"
 )
@@ -18,6 +22,193 @@ type MovieRepository struct {
 
 func NewMovieRepository(db *sql.DB) *MovieRepository {
 	return &MovieRepository{db: db}
+}
+
+func (r *MovieRepository) CreateMovie(ctx context.Context, params CreateMovieParams) (movies.Movie, error) {
+	if r.db == nil {
+		return r.createMovieInMemory(params)
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return movies.Movie{}, err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	synopsis := sql.NullString{}
+	if strings.TrimSpace(params.Synopsis) != "" {
+		synopsis.Valid = true
+		synopsis.String = params.Synopsis
+	}
+
+	posterURL := sql.NullString{}
+	if strings.TrimSpace(params.PosterURL) != "" {
+		posterURL.Valid = true
+		posterURL.String = params.PosterURL
+	}
+
+	availabilityStart := sql.NullTime{}
+	if params.AvailabilityStart != nil {
+		availabilityStart.Valid = true
+		availabilityStart.Time = params.AvailabilityStart.UTC()
+	}
+
+	availabilityEnd := sql.NullTime{}
+	if params.AvailabilityEnd != nil {
+		availabilityEnd.Valid = true
+		availabilityEnd.Time = params.AvailabilityEnd.UTC()
+	}
+
+	var movieID int64
+	insertMovieErr := tx.QueryRowContext(
+		ctx,
+		`INSERT INTO movies (slug, title, synopsis, poster_url, availability_start, availability_end, is_visible)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)
+		 RETURNING id`,
+		params.Slug,
+		params.Title,
+		synopsis,
+		posterURL,
+		availabilityStart,
+		availabilityEnd,
+		params.IsVisible,
+	).Scan(&movieID)
+	if insertMovieErr != nil {
+		return movies.Movie{}, translateCreateMovieError(insertMovieErr)
+	}
+
+	drmKey := sql.NullString{}
+	if strings.TrimSpace(params.DRMKeyID) != "" {
+		drmKey.Valid = true
+		drmKey.String = params.DRMKeyID
+	}
+
+	allowedHosts := params.AllowedHosts
+	if allowedHosts == nil {
+		allowedHosts = []string{}
+	}
+	allowedHostsJSON, err := json.Marshal(allowedHosts)
+	if err != nil {
+		return movies.Movie{}, err
+	}
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`INSERT INTO movie_streams (movie_id, stream_url, drm_key_id, allowed_hosts)
+		 VALUES ($1, $2, $3, $4)`,
+		movieID,
+		params.StreamURL,
+		drmKey,
+		allowedHostsJSON,
+	); err != nil {
+		return movies.Movie{}, translateCreateMovieError(err)
+	}
+
+	if len(params.Captions) > 0 {
+		for _, caption := range params.Captions {
+			if _, err := tx.ExecContext(
+				ctx,
+				`INSERT INTO movie_captions (movie_id, language_code, label, caption_url)
+				 VALUES ($1, $2, $3, $4)`,
+				movieID,
+				caption.LanguageCode,
+				caption.Label,
+				caption.CaptionURL,
+			); err != nil {
+				return movies.Movie{}, translateCreateMovieError(err)
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return movies.Movie{}, err
+	}
+
+	return r.GetMovieWithStreams(ctx, params.Slug)
+}
+
+func (r *MovieRepository) createMovieInMemory(params CreateMovieParams) (movies.Movie, error) {
+	for _, existing := range sampleMovies {
+		if existing.Slug == params.Slug {
+			return movies.Movie{}, ErrDuplicateSlug
+		}
+		if strings.EqualFold(existing.Title, params.Title) {
+			return movies.Movie{}, ErrDuplicateTitle
+		}
+	}
+
+	var maxID int64
+	for _, existing := range sampleMovies {
+		if id, err := strconv.ParseInt(existing.ID, 10, 64); err == nil {
+			if id > maxID {
+				maxID = id
+			}
+		}
+	}
+
+	newID := strconv.FormatInt(maxID+1, 10)
+	movie := movies.Movie{
+		ID:                 newID,
+		Slug:               params.Slug,
+		Title:              params.Title,
+		Synopsis:           params.Synopsis,
+		PosterURL:          params.PosterURL,
+		IsVisible:          params.IsVisible,
+		StreamURL:          params.StreamURL,
+		DRMKeyID:           params.DRMKeyID,
+		Captions:           append([]movies.Caption(nil), params.Captions...),
+		AllowedStreamHosts: append([]string(nil), params.AllowedHosts...),
+	}
+	if movie.Captions == nil {
+		movie.Captions = []movies.Caption{}
+	}
+	if movie.AllowedStreamHosts == nil {
+		movie.AllowedStreamHosts = []string{}
+	}
+	if params.AvailabilityStart != nil {
+		movie.AvailabilityStart = params.AvailabilityStart.UTC()
+	}
+	if params.AvailabilityEnd != nil {
+		movie.AvailabilityEnd = params.AvailabilityEnd.UTC()
+	}
+
+	sampleMovies[movie.Slug] = movie
+
+	return movie, nil
+}
+
+func translateCreateMovieError(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.ConstraintName {
+		case "movies_slug_key":
+			return ErrDuplicateSlug
+		case "movies_title_key":
+			return ErrDuplicateTitle
+		}
+	}
+	return err
+}
+
+var (
+	ErrDuplicateSlug  = errors.New("duplicate movie slug")
+	ErrDuplicateTitle = errors.New("duplicate movie title")
+)
+
+type CreateMovieParams struct {
+	Slug              string
+	Title             string
+	Synopsis          string
+	PosterURL         string
+	AvailabilityStart *time.Time
+	AvailabilityEnd   *time.Time
+	IsVisible         bool
+	StreamURL         string
+	DRMKeyID          string
+	AllowedHosts      []string
+	Captions          []movies.Caption
 }
 
 func (r *MovieRepository) ListMovies(ctx context.Context) ([]movies.Movie, error) {

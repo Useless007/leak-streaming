@@ -4,6 +4,8 @@ bun.lockb
 .bun-install/
 .bun-tmp/
 
+.gemini/.env
+
 # Next.js
 .next
 frontend/.next

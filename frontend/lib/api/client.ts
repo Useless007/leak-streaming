@@ -1,15 +1,17 @@
 import { z } from 'zod';
 import {
-  movieSchema,
-  movieSummarySchema,
-  playbackTokenSchema,
-  streamSchema,
-  captionSchema,
-  type Movie,
-  type MovieSummary,
-  type Caption,
-  type Stream,
-  type PlaybackToken
+	movieSchema,
+	movieSummarySchema,
+	playbackTokenSchema,
+	streamSchema,
+	captionSchema,
+	createMoviePayloadSchema,
+	type Movie,
+	type MovieSummary,
+	type Caption,
+	type Stream,
+	type PlaybackToken,
+	type CreateMoviePayload
 } from './schemas';
 
 const errorResponseSchema = z.object({
@@ -110,17 +112,25 @@ export function createApiClient(options: FetcherOptions = {}) {
         ...options,
         cache: 'no-store'
       });
-    },
-    async createPlaybackToken(movieId: string): Promise<PlaybackToken> {
-      return request(
-        `/movies/${movieId}/playback-token`,
-        playbackTokenSchema,
-        {
-          ...options,
-          method: 'POST'
-        }
-      );
-    }
+	},
+	async createPlaybackToken(movieId: string): Promise<PlaybackToken> {
+		return request(
+			`/movies/${movieId}/playback-token`,
+			playbackTokenSchema,
+			{
+				...options,
+				method: 'POST'
+			}
+		);
+	},
+	async createMovie(payload: CreateMoviePayload): Promise<Movie> {
+		const body = createMoviePayloadSchema.parse(payload);
+		return request('/movies', movieSchema, {
+			...options,
+			method: 'POST',
+			body
+		});
+	}
   };
 }
 
